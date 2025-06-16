@@ -15,15 +15,45 @@ var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const axios_1 = __importDefault(require("axios"));
+const ioredis_1 = __importDefault(require("ioredis"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
+const redis = new ioredis_1.default({ host: 'localhost', port: Number(6379) });
 const app = (0, express_1.default)();
 const PORT = (_a = process.env.PORT) !== null && _a !== void 0 ? _a : 8000;
+// interface CacheStore {
+//     totalpageCount: number
+// }
+// const cacheStore: CacheStore = {
+//     totalpageCount: 0
+// }
 app.get("/", (req, res) => {
     return res.json({ status: "ssuccess" });
 });
 app.get("/books", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const response = yield axios_1.default.get("https://api.freeapi.app/api/v1/public/books");
-    return res.json(response);
+    return res.json(response.data);
+}));
+app.get("/books/total", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    //check cache
+    //  if(cacheStore.totalpageCount){
+    //     console.log(`cache hit`)
+    //       return res.json({totalpageCount:Number(cacheStore.totalpageCount)})
+    //  }
+    var _a, _b;
+    // using redis
+    const cachedValue = yield redis.get("totalpageValue");
+    if (cachedValue) {
+        console.log(`cache hit`);
+        return res.json({ totalpageCount: Number(cachedValue) });
+    }
+    const response = yield axios_1.default.get("https://api.freeapi.app/api/v1/public/books");
+    const totalpageCount = (_b = (_a = response === null || response === void 0 ? void 0 : response.data) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.data.reduce((acc, curr) => { var _a; return !((_a = curr.volumeInfo) === null || _a === void 0 ? void 0 : _a.pageCount) ? 0 : curr.volumeInfo.pageCount + acc; }, 0);
+    //set the cache
+    // cacheStore.totalpageCount = Number(totalpageCount);
+    yield redis.set("totalpageValue", totalpageCount);
+    console.log(`cache Miss`);
+    console.log(totalpageCount);
+    return res.json({ totalpageCount });
 }));
 app.listen(PORT, () => console.log(`server is running at PORt:${PORT}`));
