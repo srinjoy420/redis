@@ -18,9 +18,31 @@ const axios_1 = __importDefault(require("axios"));
 const ioredis_1 = __importDefault(require("ioredis"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
-const redis = new ioredis_1.default({ host: 'localhost', port: Number(6379) });
 const app = (0, express_1.default)();
 const PORT = (_a = process.env.PORT) !== null && _a !== void 0 ? _a : 8000;
+const redis = new ioredis_1.default({ host: 'localhost', port: Number(6379) });
+// rate limitig
+app.use(function (req, res, next) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // const key1=`rate limit${_id}`; //per user rate limiting
+        const key = "rate-limit";
+        const value = yield redis.get(key);
+        if (value === null) {
+            redis.set(key, 0);
+            redis.expire(key, 60); //remove after 60 secoend
+        }
+        if (value && Number(value) > 10) {
+            return res.status(429).json({ message: "too many request" });
+        }
+        redis.incr(key); //increment by 1
+        next();
+    });
+});
+// queee systerm
+// redis.lpush("video-queue0",'video-url1')
+// redis.lpush("video-queue0",'video-url1')
+// redis.lpush("video-queue0",'video-url1')
+// redis.lpush("video-queue0",'video-url1')
 // interface CacheStore {
 //     totalpageCount: number
 // }

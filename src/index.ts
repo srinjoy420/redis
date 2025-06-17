@@ -3,10 +3,39 @@ import axios from "axios";
 import Redis from "ioredis";
 import dotenv from "dotenv"
 dotenv.config()
-const redis = new Redis({ host: 'localhost', port: Number(6379) })
-
 const app = express()
 const PORT = process.env.PORT ?? 8000
+const redis = new Redis({ host: 'localhost', port: Number(6379) })
+
+// rate limitig
+app.use(async function(req,res,next){
+   // const key1=`rate limit${_id}`; //per user rate limiting
+    const key="rate-limit";
+    const value=await redis.get(key)
+    if(value===null){
+         redis.set(key,0)
+         redis.expire(key,60) //remove after 60 secoend
+    }
+    if(value && Number(value)>10){
+        return res.status(429).json({message:"too many request"})
+    }
+   
+
+    redis.incr(key) //increment by 1
+    next()
+
+
+})
+
+
+// queee systerm
+
+// redis.lpush("video-queue0",'video-url1')
+// redis.lpush("video-queue0",'video-url1')
+// redis.lpush("video-queue0",'video-url1')
+// redis.lpush("video-queue0",'video-url1')
+
+
 // interface CacheStore {
 //     totalpageCount: number
 // }
